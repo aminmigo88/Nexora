@@ -329,10 +329,11 @@ final class Station {
 
     // MARK: - Readings
 
-    /// /api/info isn't in the current firmware; a 404 is remembered for 5 minutes.
+    /// Firmware before 2026-11-23-api-info has no /api/info; a 404 is remembered for a minute.
     func pollInfo() async {
+        defer { dropStaleInfo() }
         guard isConnected else { return }
-        if let missing = infoMissingAt, Date().timeIntervalSince(missing) < 300 { return }
+        if let missing = infoMissingAt, Date().timeIntervalSince(missing) < 60 { return }
         guard let reply = try? await request("/api/info") else { return }
         if reply.status == 404 {
             infoMissingAt = Date()
@@ -344,34 +345,46 @@ final class Station {
         infoAt = Date()
     }
 
+    /// When the ESP32 stops answering, Overview moves on to Adafruit IO, then ThingSpeak.
+    private func dropStaleInfo() {
+        if let infoAt, Date().timeIntervalSince(infoAt) > 20 {
+            self.infoAt = nil
+        }
+    }
+
     private func receiveInfo(_ data: Data) {
         guard let fresh = try? Station.decode(StationInfo.self, from: data) else { return }
         info = fresh
         infoAt = Date()
     }
 
-    /// The controller's own /api/info when it answers; otherwise the newer of Adafruit IO and ThingSpeak.
+    /// In order: the ESP32's own /api/info, then Adafruit IO, then ThingSpeak.
     var readings: ReadingsSnapshot {
-        if let info, let infoAt, Date().timeIntervalSince(infoAt) < 180 {
+        if let info, let infoAt, Date().timeIntervalSince(infoAt) <= 20 {
             return ReadingsSnapshot(indoor: info.indoor, outdoor: info.outdoor, bmeTemp: info.bmeTemp,
                                     humidity: info.humidity, pressure: info.pressure, eco2: info.eco2,
                                     tvoc: info.tvoc, at: infoAt, source: .controller)
         }
-        var candidates: [ReadingsSnapshot] = []
-        if let date = adafruit.latestDate {
-            let live = adafruit.readings
-            candidates.append(ReadingsSnapshot(indoor: live[.indoor]?.value, outdoor: live[.outdoor]?.value,
-                                               bmeTemp: live[.bmeTemp]?.value, humidity: live[.humidity]?.value,
-                                               pressure: live[.pressure]?.value, eco2: live[.eco2]?.value,
-                                               tvoc: live[.tvoc]?.value, at: date, source: .adafruit))
+        let adafruitSnapshot = adafruitReadings
+        if adafruit.problem == nil, let adafruitSnapshot {
+            return adafruitSnapshot
         }
         if let last = history.latest {
-            candidates.append(ReadingsSnapshot(indoor: last.indoor, outdoor: last.outdoor, bmeTemp: last.bmeTemp,
-                                               humidity: last.humidity, pressure: last.pressure, eco2: last.eco2,
-                                               tvoc: last.tvoc, at: last.date, source: .thingSpeak))
+            return ReadingsSnapshot(indoor: last.indoor, outdoor: last.outdoor, bmeTemp: last.bmeTemp,
+                                    humidity: last.humidity, pressure: last.pressure, eco2: last.eco2,
+                                    tvoc: last.tvoc, at: last.date, source: .thingSpeak)
         }
-        let newest = candidates.max { ($0.at ?? .distantPast) < ($1.at ?? .distantPast) }
-        return newest ?? ReadingsSnapshot()
+        // Adafruit IO's last values, even though its latest refresh failed, beat showing nothing.
+        return adafruitSnapshot ?? ReadingsSnapshot()
+    }
+
+    private var adafruitReadings: ReadingsSnapshot? {
+        guard let date = adafruit.latestDate else { return nil }
+        let live = adafruit.readings
+        return ReadingsSnapshot(indoor: live[.indoor]?.value, outdoor: live[.outdoor]?.value,
+                                bmeTemp: live[.bmeTemp]?.value, humidity: live[.humidity]?.value,
+                                pressure: live[.pressure]?.value, eco2: live[.eco2]?.value,
+                                tvoc: live[.tvoc]?.value, at: date, source: .adafruit)
     }
 
     // MARK: - Log

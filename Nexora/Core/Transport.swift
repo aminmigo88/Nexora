@@ -197,7 +197,9 @@ final class RelayClient {
         } else if topic == "nexora/info" {
             onInfo?(payload)
         } else if topic == replyTopic {
-            guard let reply = try? JSONDecoder().decode(RelayReply.self, from: payload) else { return }
+            // Tolerate a broken UTF-8 byte rather than losing the whole answer.
+            let cleaned = Data(String(decoding: payload, as: UTF8.self).utf8)
+            guard let reply = try? JSONDecoder().decode(RelayReply.self, from: cleaned) else { return }
             let body = Data((reply.b ?? "").utf8)
             finish(reply.id, with: .success(HTTPReply(status: reply.s, body: body, logTotal: reply.t)))
         }

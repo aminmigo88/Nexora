@@ -17,24 +17,24 @@ No passwords or keys are in this repo or in the build. You type them in the app 
 
 | Where you are | Path | Needs |
 |---|---|---|
-| Home Wi-Fi | iPhone → light controller (`light-controller.local`) | Today's firmware |
+| Home Wi-Fi | iPhone → light controller (`light-controller.local`) | The light controller firmware |
 | Away | iPhone → EMQX → hub ESP32 → light controller | The hub sketch |
-| Anywhere | iPhone → Adafruit IO (live readings, group `room-temperature`, every 20 s) | Adafruit IO username and AIO key |
-| Anywhere | iPhone → ThingSpeak (history chart; readings only if Adafruit IO has none) | ThingSpeak channel ID and Read API Key |
+| Anywhere | iPhone → Adafruit IO (readings, group `room-temperature`, every 20 s) | Adafruit IO username and AIO key |
+| Anywhere | iPhone → ThingSpeak (history chart, and readings as a last resort) | ThingSpeak channel ID and Read API Key |
 
-Overview uses the controller's `/api/info` when it answers; otherwise the newer of Adafruit IO and ThingSpeak.
+Overview takes its readings in this order: the ESP32's `/api/info` (every 2 s at home, 3 s away; eCO₂ and TVOC change every second, the rest every 20 s), then Adafruit IO, then ThingSpeak.
 
 ## API the app uses
 
 Existing firmware routes: `/api/state`, `/api/ir/state`, `/api/ir/cmd`, `/api/ir/send`, `/api/remotes`, `POST /api/remotes/save`, `/log?since=` (with the `X-Log-Total` header).
 
-### `/api/info` (next firmware update)
+### `/api/info` (firmware 2026-11-23-api-info and later)
 
-Read-only JSON. A reading is `null` when its sensor is offline.
+Read-only JSON. A reading is `null` while its sensor is offline or warming up.
 
 ```json
 {
-  "version": "2026-10-23-encoder-speed",
+  "version": "2026-11-23-api-info",
   "uptime": 12345,
   "indoor": 23.4,
   "outdoor": 14.8,
@@ -47,7 +47,7 @@ Read-only JSON. A reading is `null` when its sensor is offline.
 }
 ```
 
-Until a controller answers this route, Overview shows ThingSpeak's latest values.
+Older firmware answers 404; the app then uses Adafruit IO, then ThingSpeak, and asks again after a minute.
 
 ### Hub relay over MQTT (EMQX)
 
@@ -58,15 +58,20 @@ The app connects with secure WebSocket (port 8084, path `/mqtt`). All topics sta
 | `nexora/req` | app | `{"id":"a1b2c3d4","r":"nexora/res/<client>","m":"GET","p":"/api/state?on=1","b":""}` — `b` is the form body for `POST` |
 | `nexora/res/<client>` | hub | `{"id":"a1b2c3d4","s":200,"t":1234,"b":"<response body>"}` — `t` is `X-Log-Total` (only for `/log`) |
 | `nexora/status` | hub, retained | `online`, with `offline` as its last will |
-| `nexora/info` | hub, retained, every 20 s | the `/api/info` JSON |
 
-The hub only forwards paths that start with `/api/` or `/log`. Responses can reach about 9 KB (the log), so the hub's MQTT buffer must be larger than that.
+Away, the app asks for `/api/info` through the hub like any other request.
+
+The hub only forwards paths that start with `/api/` or `/log`. Answers can reach about 9 KB (the log); the hub streams them, so its MQTT buffer only needs to fit the requests.
 
 ## Build
 
 GitHub Actions on `macos-15`: XcodeGen makes the project from `project.yml`, then `xcodebuild` builds without signing and the app is zipped into `Nexora.ipa`. See `.github/workflows/build.yml`.
 
 ## What's new
+
+### 1.2
+- Overview reads the ESP32's own `/api/info` every 2 s at home and every 3 s away (through the hub), shown as "Live". Then Adafruit IO, then ThingSpeak.
+- Replies from the hub with a broken UTF-8 byte no longer get lost.
 
 ### 1.1
 - Overview gets its readings from Adafruit IO (the 7 feeds in `room-temperature`, refreshed every 20 s). A sensor that stopped updating shows "—".

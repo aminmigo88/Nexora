@@ -28,17 +28,27 @@ struct OverviewView: View {
             .padding(.bottom, 28)
         }
         .background(Theme.background)
-        .refreshable { await refresh(force: true) }
+        .refreshable {
+            await station.pollInfo()
+            await refreshCloud(force: true)
+        }
         .task(id: station.link) {
+            // Straight from the ESP32: eCO₂ and TVOC change every second there.
             while !Task.isCancelled {
-                await refresh(force: false)
+                await station.pollInfo()
+                try? await Task.sleep(nanoseconds: station.link == .away ? 3_000_000_000 : 2_000_000_000)
+            }
+        }
+        .task {
+            // Adafruit IO every 20 s; ThingSpeak limits itself to about every 2 minutes.
+            while !Task.isCancelled {
+                await refreshCloud(force: false)
                 try? await Task.sleep(nanoseconds: 20_000_000_000)
             }
         }
     }
 
-    func refresh(force: Bool) async {
-        await station.pollInfo()
+    func refreshCloud(force: Bool) async {
         await station.adafruit.refresh(settings: settings.value, force: force)
         await history.refresh(settings: settings.value, force: force)
     }
