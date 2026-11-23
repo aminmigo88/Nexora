@@ -19,7 +19,10 @@ No passwords or keys are in this repo or in the build. You type them in the app 
 |---|---|---|
 | Home Wi-Fi | iPhone → light controller (`light-controller.local`) | Today's firmware |
 | Away | iPhone → EMQX → hub ESP32 → light controller | The hub sketch |
-| Anywhere | iPhone → ThingSpeak (history chart, and readings until `/api/info` exists) | ThingSpeak channel ID and Read API Key |
+| Anywhere | iPhone → Adafruit IO (live readings, group `room-temperature`, every 20 s) | Adafruit IO username and AIO key |
+| Anywhere | iPhone → ThingSpeak (history chart; readings only if Adafruit IO has none) | ThingSpeak channel ID and Read API Key |
+
+Overview uses the controller's `/api/info` when it answers; otherwise the newer of Adafruit IO and ThingSpeak.
 
 ## API the app uses
 
@@ -64,6 +67,11 @@ The hub only forwards paths that start with `/api/` or `/log`. Responses can rea
 GitHub Actions on `macos-15`: XcodeGen makes the project from `project.yml`, then `xcodebuild` builds without signing and the app is zipped into `Nexora.ipa`. See `.github/workflows/build.yml`.
 
 ## What's new
+
+### 1.1
+- Overview gets its readings from Adafruit IO (the 7 feeds in `room-temperature`, refreshed every 20 s). A sensor that stopped updating shows "—".
+- New Adafruit IO settings in More → Connection: username, AIO key, group. Saved in the Keychain.
+- The temperature chart still comes from ThingSpeak.
 
 ### 1.0
 - First version: Overview, Lighting, IR Finder, Remotes, More and Live log, in the light design.

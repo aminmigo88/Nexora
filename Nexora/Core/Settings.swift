@@ -11,6 +11,9 @@ struct ConnectionSettings: Codable, Equatable {
     var emqxPassword: String = ""
     var thingSpeakChannel: String = ""
     var thingSpeakKey: String = ""
+    var adafruitUser: String = ""
+    var adafruitKey: String = ""
+    var adafruitGroup: String = "room-temperature"
 
     init() {}
 
@@ -23,6 +26,9 @@ struct ConnectionSettings: Codable, Equatable {
         emqxPassword = try c.decodeIfPresent(String.self, forKey: .emqxPassword) ?? ""
         thingSpeakChannel = try c.decodeIfPresent(String.self, forKey: .thingSpeakChannel) ?? ""
         thingSpeakKey = try c.decodeIfPresent(String.self, forKey: .thingSpeakKey) ?? ""
+        adafruitUser = try c.decodeIfPresent(String.self, forKey: .adafruitUser) ?? ""
+        adafruitKey = try c.decodeIfPresent(String.self, forKey: .adafruitKey) ?? ""
+        adafruitGroup = try c.decodeIfPresent(String.self, forKey: .adafruitGroup) ?? "room-temperature"
     }
 
     var relayConfigured: Bool {
@@ -31,6 +37,16 @@ struct ConnectionSettings: Codable, Equatable {
 
     var thingSpeakConfigured: Bool {
         !thingSpeakChannel.isEmpty && !thingSpeakKey.isEmpty
+    }
+
+    var adafruitConfigured: Bool {
+        !adafruitUser.isEmpty && !adafruitKey.isEmpty
+    }
+
+    /// The firmware uploads to "room-temperature" (IO_GROUP in the .ino).
+    var adafruitGroupKey: String {
+        let group = adafruitGroup.trimmingCharacters(in: .whitespacesAndNewlines)
+        return group.isEmpty ? "room-temperature" : group
     }
 }
 

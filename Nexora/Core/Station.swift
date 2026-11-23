@@ -26,6 +26,7 @@ final class Station {
 
     let settings: SettingsStore
     let history: HistoryStore
+    let adafruit: AdafruitStore
 
     private let local: LocalHTTP
     private let relay: RelayClient
@@ -43,6 +44,7 @@ final class Station {
     init() {
         settings = SettingsStore()
         history = HistoryStore()
+        adafruit = AdafruitStore()
         local = LocalHTTP()
         relay = RelayClient()
         relay.onHubStatus = { [weak self] online in
@@ -177,6 +179,7 @@ final class Station {
         link = .connecting
         Task { await refreshLink() }
         Task { await history.refresh(settings: settings.value, force: true) }
+        Task { await adafruit.refresh(settings: settings.value, force: true) }
     }
 
     var relayStatus: (text: String, ok: Bool) {
@@ -347,18 +350,28 @@ final class Station {
         infoAt = Date()
     }
 
+    /// The controller's own /api/info when it answers; otherwise the newer of Adafruit IO and ThingSpeak.
     var readings: ReadingsSnapshot {
         if let info, let infoAt, Date().timeIntervalSince(infoAt) < 180 {
             return ReadingsSnapshot(indoor: info.indoor, outdoor: info.outdoor, bmeTemp: info.bmeTemp,
                                     humidity: info.humidity, pressure: info.pressure, eco2: info.eco2,
-                                    tvoc: info.tvoc, at: infoAt, live: true)
+                                    tvoc: info.tvoc, at: infoAt, source: .controller)
+        }
+        var candidates: [ReadingsSnapshot] = []
+        if let date = adafruit.latestDate {
+            let live = adafruit.readings
+            candidates.append(ReadingsSnapshot(indoor: live[.indoor]?.value, outdoor: live[.outdoor]?.value,
+                                               bmeTemp: live[.bmeTemp]?.value, humidity: live[.humidity]?.value,
+                                               pressure: live[.pressure]?.value, eco2: live[.eco2]?.value,
+                                               tvoc: live[.tvoc]?.value, at: date, source: .adafruit))
         }
         if let last = history.latest {
-            return ReadingsSnapshot(indoor: last.indoor, outdoor: last.outdoor, bmeTemp: last.bmeTemp,
-                                    humidity: last.humidity, pressure: last.pressure, eco2: last.eco2,
-                                    tvoc: last.tvoc, at: last.date, live: false)
+            candidates.append(ReadingsSnapshot(indoor: last.indoor, outdoor: last.outdoor, bmeTemp: last.bmeTemp,
+                                               humidity: last.humidity, pressure: last.pressure, eco2: last.eco2,
+                                               tvoc: last.tvoc, at: last.date, source: .thingSpeak))
         }
-        return ReadingsSnapshot()
+        let newest = candidates.max { ($0.at ?? .distantPast) < ($1.at ?? .distantPast) }
+        return newest ?? ReadingsSnapshot()
     }
 
     // MARK: - Log

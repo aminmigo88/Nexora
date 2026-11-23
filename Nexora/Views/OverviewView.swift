@@ -39,18 +39,21 @@ struct OverviewView: View {
 
     func refresh(force: Bool) async {
         await station.pollInfo()
+        await station.adafruit.refresh(settings: settings.value, force: force)
         await history.refresh(settings: settings.value, force: force)
     }
 
     func subtitle(for readings: ReadingsSnapshot) -> Text {
         guard let at = readings.at else {
-            if settings.value.thingSpeakConfigured {
+            if let problem = station.adafruit.problem {
+                return Text(problem)
+            }
+            if settings.value.adafruitConfigured || settings.value.thingSpeakConfigured {
                 return Text("Waiting for the first readings")
             }
-            return Text("Add your ThingSpeak Read API Key in More to see readings")
+            return Text("Add Adafruit IO or ThingSpeak in More to see readings")
         }
-        let source = readings.live ? "Live" : "From ThingSpeak"
-        return Text("\(source) · updated ") + Text(at, style: .relative) + Text(" ago")
+        return Text("\(readings.source.title) · updated ") + Text(at, style: .relative) + Text(" ago")
     }
 }
 

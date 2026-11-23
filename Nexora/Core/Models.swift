@@ -98,7 +98,20 @@ struct StationInfo: Decodable, Equatable {
     var scenes: [String]?
 }
 
-/// What the Overview shows, from the live controller or from ThingSpeak.
+enum ReadingsSource {
+    case none, controller, adafruit, thingSpeak
+
+    var title: String {
+        switch self {
+        case .none: return "Readings"
+        case .controller: return "Live"
+        case .adafruit: return "From Adafruit IO"
+        case .thingSpeak: return "From ThingSpeak"
+        }
+    }
+}
+
+/// What the Overview shows: from the controller's /api/info, Adafruit IO or ThingSpeak.
 struct ReadingsSnapshot {
     var indoor: Double? = nil
     var outdoor: Double? = nil
@@ -108,7 +121,7 @@ struct ReadingsSnapshot {
     var eco2: Double? = nil
     var tvoc: Double? = nil
     var at: Date? = nil
-    var live = false
+    var source: ReadingsSource = .none
 }
 
 enum LogKind: String, CaseIterable, Hashable {

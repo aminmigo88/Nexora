@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum SettingsSheet: String, Identifiable {
-    case controller, relay, thingSpeak
+    case controller, relay, adafruit, thingSpeak
 
     var id: String { rawValue }
 
@@ -9,6 +9,7 @@ enum SettingsSheet: String, Identifiable {
         switch self {
         case .controller: return "Light controller"
         case .relay: return "Away access"
+        case .adafruit: return "Adafruit IO"
         case .thingSpeak: return "ThingSpeak"
         }
     }
@@ -81,6 +82,7 @@ struct MoreView: View {
     var connectionCard: some View {
         let controller = controllerStatus
         let relay = station.relayStatus
+        let adafruit = adafruitStatus
         let thingSpeak = thingSpeakStatus
         return VStack(alignment: .leading, spacing: 0) {
             SectionHeader(title: "Connection",
@@ -94,6 +96,10 @@ struct MoreView: View {
             }
             SettingsRow(title: "Away access", detail: "EMQX", status: relay.text, ok: relay.ok) {
                 sheet = .relay
+            }
+            SettingsRow(title: "Adafruit IO", detail: "Live readings · group \(settings.value.adafruitGroupKey)",
+                        status: adafruit.text, ok: adafruit.ok) {
+                sheet = .adafruit
             }
             SettingsRow(title: "ThingSpeak", detail: settings.value.thingSpeakChannel.isEmpty ? "Channel" : "Channel \(settings.value.thingSpeakChannel)",
                         status: thingSpeak.text, ok: thingSpeak.ok) {
@@ -109,6 +115,13 @@ struct MoreView: View {
         case .connecting: return ("checking", false)
         case .away, .offline: return ("not on this Wi-Fi", false)
         }
+    }
+
+    var adafruitStatus: (text: String, ok: Bool) {
+        guard settings.value.adafruitConfigured else { return ("not set up", false) }
+        if station.adafruit.problem != nil { return ("check settings", false) }
+        if station.adafruit.readings.isEmpty { return ("waiting", false) }
+        return ("live", true)
     }
 
     var thingSpeakStatus: (text: String, ok: Bool) {
@@ -279,6 +292,33 @@ struct SettingsEditor: View {
                     Text("The app user from your deployment's Authentication list (not the hub's).")
                 }
             }
+        case .adafruit:
+            Section {
+                TextField("Username", text: $draft.adafruitUser)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                SecureField("AIO Key", text: $draft.adafruitKey)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            } header: {
+                Text("Account")
+            } footer: {
+                Text("On io.adafruit.com, tap the key icon at the top to see your Username and Active Key.")
+            }
+            Section {
+                TextField("room-temperature", text: $draft.adafruitGroup)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            } header: {
+                Text("Group")
+            } footer: {
+                if let problem = station.adafruit.problem {
+                    Text(problem)
+                        .foregroundStyle(Theme.dangerText)
+                } else {
+                    Text("The group your ESP32 uploads to every 20 s. Your firmware uses room-temperature.")
+                }
+            }
         case .thingSpeak:
             Section {
                 TextField("Channel ID", text: $draft.thingSpeakChannel)
@@ -307,6 +347,9 @@ struct SettingsEditor: View {
         next.emqxUser = next.emqxUser.trimmingCharacters(in: .whitespacesAndNewlines)
         next.thingSpeakChannel = next.thingSpeakChannel.trimmingCharacters(in: .whitespacesAndNewlines)
         next.thingSpeakKey = next.thingSpeakKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        next.adafruitUser = next.adafruitUser.trimmingCharacters(in: .whitespacesAndNewlines)
+        next.adafruitKey = next.adafruitKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        next.adafruitGroup = next.adafruitGroupKey
         guard store.save(next) else {
             saveFailed = true
             return
