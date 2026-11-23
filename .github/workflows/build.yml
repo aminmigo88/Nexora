@@ -1,0 +1,86 @@
+name: Build unsigned IPA
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        run: xcodegen generate
+
+      - name: Build the app without signing
+        run: |
+          set +e
+          xcodebuild \
+            -project Nexora.xcodeproj \
+            -scheme Nexora \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            build > build.log 2>&1
+          status=$?
+          set -e
+          grep -E ": (error|warning): " build.log | sort -u | head -150 || true
+          if [ $status -ne 0 ]; then
+            echo "----- last lines of the build log -----"
+            tail -80 build.log
+            msg=$(grep -E ": error: " build.log | sort -u | head -40 | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Build failed::${msg}"
+            exit $status
+          fi
+
+      - name: Package Nexora.ipa
+        run: |
+          APP="build/Build/Products/Release-iphoneos/Nexora.app"
+          test -d "$APP"
+          rm -rf out
+          mkdir -p out/Payload
+          cp -R "$APP" out/Payload/
+          (cd out && zip -qry Nexora.ipa Payload)
+          ls -la out
+          /usr/libexec/PlistBuddy -c "Print" "$APP/Info.plist"
+
+      - name: Upload the IPA as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nexora-unsigned-ipa
+          path: out/Nexora.ipa
+          if-no-files-found: error
+
+      - name: Publish the IPA to the "latest" release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest out/Nexora.ipa \
+            --title "Nexora (build ${{ github.run_number }})" \
+            --notes "Unsigned build ${{ github.run_number }} from commit ${GITHUB_SHA::7}. Sign it in KravaSigner before installing." \
+            --target "$GITHUB_SHA" \
+            --latest
