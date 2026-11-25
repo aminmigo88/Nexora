@@ -276,7 +276,9 @@ struct LightPreview: View {
                 ]), center: .center, startRadius: 0, endRadius: 170))
                 .frame(width: 340, height: 340)
                 .opacity(glowOpacity)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                // min 0: the 340 pt glow spills past the card instead of stretching it
+                // (without it the content grew to 340 pt and lost 30 pt at the top and bottom)
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topTrailing)
                 .offset(x: 40, y: -70)
             VStack(alignment: .leading, spacing: 0) {
                 Text("Live light preview")

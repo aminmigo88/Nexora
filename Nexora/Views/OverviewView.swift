@@ -190,9 +190,8 @@ struct TemperatureText: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 2) {
-            Text(value.map { String(format: "%.1f", $0) } ?? "—")
+            number
                 .font(.system(size: size, weight: .bold))
-                .kerning(-size * 0.06)
                 .monospacedDigit()
             Text("°C")
                 .font(.system(size: unitSize, weight: .bold))
@@ -200,6 +199,13 @@ struct TemperatureText: View {
         }
         .lineLimit(1)
         .minimumScaleFactor(0.6)
+    }
+
+    // Tight spacing between the digits, but none after the last one: kerning after the
+    // last character made the text narrower than that digit, and iOS cut its right edge off.
+    private var number: Text {
+        let text = value.map { String(format: "%.1f", $0) } ?? "—"
+        return Text(String(text.dropLast())).kerning(-size * 0.06) + Text(String(text.suffix(1)))
     }
 }
 

@@ -69,6 +69,10 @@ GitHub Actions on `macos-15`: XcodeGen makes the project from `project.yml`, the
 
 ## What's new
 
+### 1.3
+- Lighting: the live light preview no longer cuts off its title at the top and the brightness / "5 PWM channels" line at the bottom.
+- Overview: the last digit of the big temperatures (like the 0 in 23.0 or the 8 in 21.8) is no longer cut on its right side.
+
 ### 1.2
 - Overview reads the ESP32's own `/api/info` every 2 s at home and every 3 s away (through the hub), shown as "Live". Then Adafruit IO, then ThingSpeak.
 - Replies from the hub with a broken UTF-8 byte no longer get lost.
