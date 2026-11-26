@@ -14,6 +14,9 @@ struct ConnectionSettings: Codable, Equatable {
     var adafruitUser: String = ""
     var adafruitKey: String = ""
     var adafruitGroup: String = "room-temperature"
+    /// Where the sensors are, for the widget's sunrise, sunset and moon (rounded to about 1 km).
+    var homeLatitude: Double? = nil
+    var homeLongitude: Double? = nil
 
     init() {}
 
@@ -29,6 +32,12 @@ struct ConnectionSettings: Codable, Equatable {
         adafruitUser = try c.decodeIfPresent(String.self, forKey: .adafruitUser) ?? ""
         adafruitKey = try c.decodeIfPresent(String.self, forKey: .adafruitKey) ?? ""
         adafruitGroup = try c.decodeIfPresent(String.self, forKey: .adafruitGroup) ?? "room-temperature"
+        homeLatitude = try c.decodeIfPresent(Double.self, forKey: .homeLatitude)
+        homeLongitude = try c.decodeIfPresent(Double.self, forKey: .homeLongitude)
+    }
+
+    var homeConfigured: Bool {
+        homeLatitude != nil && homeLongitude != nil
     }
 
     var relayConfigured: Bool {

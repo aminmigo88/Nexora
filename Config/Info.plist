@@ -24,6 +24,8 @@
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Nexora talks to your light controller on your home Wi-Fi.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Only when you tap "Use my current location": the widget uses the spot for each day's sunrise, sunset and moon.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

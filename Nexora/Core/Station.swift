@@ -40,6 +40,7 @@ final class Station {
     @ObservationIgnored private var logPartial: [UInt8] = []
     @ObservationIgnored private var logNextID = 0
     @ObservationIgnored private var logPrimed = false
+    @ObservationIgnored private var lastWidgetShare: Date?
 
     init() {
         settings = SettingsStore()
@@ -57,6 +58,8 @@ final class Station {
             self?.relayDropped()
         }
         startPathMonitor()
+        // The widget needs the settings even before the first readings come in.
+        shareWithWidget(force: true)
     }
 
     var isConnected: Bool { link == .home || link == .away }
@@ -164,6 +167,8 @@ final class Station {
     }
 
     func appWentToBackground() {
+        // Back on the home screen, the widget shows the same numbers as the app.
+        shareWithWidget(force: true)
         if link == .away {
             relay.disconnect()
             hubOnline = nil
@@ -180,6 +185,15 @@ final class Station {
         Task { await refreshLink() }
         Task { await history.refresh(settings: settings.value, force: true) }
         Task { await adafruit.refresh(settings: settings.value, force: true) }
+        shareWithWidget(force: true)
+    }
+
+    /// Hands the settings and current readings to the widget: at most once a minute, unless forced.
+    /// Forced shares also redraw the widget (free while the app is open).
+    func shareWithWidget(force: Bool = false) {
+        if !force, let last = lastWidgetShare, Date().timeIntervalSince(last) < 60 { return }
+        lastWidgetShare = Date()
+        WidgetBridge.share(settings: settings.value, readings: readings, reload: force)
     }
 
     var relayStatus: (text: String, ok: Bool) {

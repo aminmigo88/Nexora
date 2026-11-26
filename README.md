@@ -69,6 +69,12 @@ GitHub Actions on `macos-15`: XcodeGen makes the project from `project.yml`, the
 
 ## What's new
 
+### 1.4
+- Home screen widget (small): outdoor temperature and humidity with ↑/↓ and the change since the same time yesterday, eCO₂ and TVOC colored green / orange / red by air quality, on the sky with the sun by day or the moon in its real phase at night.
+- The widget's readings follow the app's order: the ESP32 itself (through EMQX), then Adafruit IO, then ThingSpeak. Yesterday's values come from ThingSpeak. Closing the app hands its own readings to the widget.
+- Sunrise, sunset and moon phase come from MET Norway's Sunrise 3.0 service once a day, for the spot set in More → Widget → Use my current location (worked out on the phone if the service can't be reached).
+- Air quality colors: eCO₂ good up to 1000 ppm, moderate up to 1500 ppm, bad above; TVOC good up to 220 ppb, moderate up to 660 ppb, bad above.
+
 ### 1.3
 - Lighting: the live light preview no longer cuts off its title at the top and the brightness / "5 PWM channels" line at the bottom.
 - Overview: the last digit of the big temperatures (like the 0 in 23.0 or the 8 in 21.8) is no longer cut on its right side.

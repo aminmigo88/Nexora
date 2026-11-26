@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum SettingsSheet: String, Identifiable {
-    case controller, relay, adafruit, thingSpeak
+    case controller, relay, adafruit, thingSpeak, widget
 
     var id: String { rawValue }
 
@@ -11,6 +11,7 @@ enum SettingsSheet: String, Identifiable {
         case .relay: return "Away access"
         case .adafruit: return "Adafruit IO"
         case .thingSpeak: return "ThingSpeak"
+        case .widget: return "Widget"
         }
     }
 }
@@ -104,6 +105,11 @@ struct MoreView: View {
             SettingsRow(title: "ThingSpeak", detail: settings.value.thingSpeakChannel.isEmpty ? "Channel" : "Channel \(settings.value.thingSpeakChannel)",
                         status: thingSpeak.text, ok: thingSpeak.ok) {
                 sheet = .thingSpeak
+            }
+            SettingsRow(title: "Widget", detail: "Sun and moon location",
+                        status: settings.value.homeConfigured ? "location set" : "not set",
+                        ok: settings.value.homeConfigured) {
+                sheet = .widget
             }
         }
         .card()
@@ -216,6 +222,9 @@ struct SettingsEditor: View {
     @State var draft = ConnectionSettings()
     @State var loaded = false
     @State var saveFailed = false
+    @State var locator = LocationFetcher()
+    @State var locating = false
+    @State var locationError: String?
 
     var body: some View {
         NavigationStack {
@@ -335,6 +344,46 @@ struct SettingsEditor: View {
             } footer: {
                 Text("On ThingSpeak: open your channel → API Keys tab → copy the Read API Key.")
             }
+        case .widget:
+            Section {
+                Button {
+                    Task { await useCurrentLocation() }
+                } label: {
+                    HStack {
+                        Text(locating ? "Finding your location…" : "Use my current location")
+                        Spacer()
+                        if locating {
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(locating)
+                if let latitude = draft.homeLatitude, let longitude = draft.homeLongitude {
+                    LabeledContent("Saved spot", value: String(format: "%.2f, %.2f", latitude, longitude))
+                }
+            } header: {
+                Text("Sun and moon")
+            } footer: {
+                if let locationError {
+                    Text(locationError)
+                        .foregroundStyle(Theme.dangerText)
+                } else {
+                    Text("Tap this once at home, then Save. The widget gets each day's sunrise, sunset and moon phase for this spot from MET Norway. Only a rounded spot (about 1 km) is saved.")
+                }
+            }
+        }
+    }
+
+    func useCurrentLocation() async {
+        locating = true
+        locationError = nil
+        defer { locating = false }
+        do {
+            let location = try await locator.current()
+            draft.homeLatitude = (location.coordinate.latitude * 100).rounded() / 100
+            draft.homeLongitude = (location.coordinate.longitude * 100).rounded() / 100
+        } catch {
+            locationError = (error as? LocalizedError)?.errorDescription ?? "Couldn't get your location."
         }
     }
 

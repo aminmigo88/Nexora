@@ -59,6 +59,8 @@ jobs:
         run: |
           APP="build/Build/Products/Release-iphoneos/Nexora.app"
           test -d "$APP"
+          test -d "$APP/PlugIns/NexoraWidget.appex"
+          ls -la "$APP/PlugIns"
           rm -rf out
           mkdir -p out/Payload
           cp -R "$APP" out/Payload/

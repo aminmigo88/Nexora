@@ -7,7 +7,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "1.3"
+    MARKETING_VERSION: "1.4"
     CURRENT_PROJECT_VERSION: "1"
 targets:
   Nexora:
@@ -16,6 +16,10 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: Nexora
+    dependencies:
+      - target: NexoraWidget
+        embed: true
+        codeSign: false
     settings:
       base:
         PRODUCT_NAME: Nexora
@@ -26,6 +30,36 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_STRICT_CONCURRENCY: minimal
+        ENABLE_PREVIEWS: NO
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+        DEVELOPMENT_TEAM: ""
+  # Home screen widget. Shares a few files with the app; reads the app's settings from a shared Keychain item.
+  NexoraWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: NexoraWidget
+      - path: Nexora/Shared
+      - path: Nexora/Core/Settings.swift
+      - path: Nexora/Core/MQTTClient.swift
+      - path: Nexora/Core/Transport.swift
+      - path: Nexora/Core/Models.swift
+      - path: Nexora/Core/Adafruit.swift
+      - path: Nexora/Core/Theme.swift
+    settings:
+      base:
+        PRODUCT_NAME: NexoraWidget
+        PRODUCT_BUNDLE_IDENTIFIER: com.aminmigo88.nexora.widget
+        INFOPLIST_FILE: Config/Widget-Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_STRICT_CONCURRENCY: minimal
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
         ENABLE_PREVIEWS: NO
         CODE_SIGN_STYLE: Manual
         CODE_SIGNING_ALLOWED: NO

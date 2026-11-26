@@ -36,6 +36,7 @@ struct OverviewView: View {
             // Straight from the ESP32: eCO₂ and TVOC change every second there.
             while !Task.isCancelled {
                 await station.pollInfo()
+                station.shareWithWidget()
                 try? await Task.sleep(nanoseconds: station.link == .away ? 3_000_000_000 : 2_000_000_000)
             }
         }
@@ -51,6 +52,7 @@ struct OverviewView: View {
     func refreshCloud(force: Bool) async {
         await station.adafruit.refresh(settings: settings.value, force: force)
         await history.refresh(settings: settings.value, force: force)
+        station.shareWithWidget()
     }
 
     func subtitle(for readings: ReadingsSnapshot) -> Text {
