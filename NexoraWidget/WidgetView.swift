@@ -13,8 +13,14 @@ struct NexoraWidgetView: View {
             switch entry.status {
             case .ready:
                 readings
-            case .setup:
-                setup
+            case .needsCode:
+                setup(title: "Setup needed",
+                      text: "Open Nexora once. If this stays: Nexora → More → Widget → Copy setup code, then hold this widget → Edit Widget → paste.",
+                      detail: entry.detail)
+            case .badCode:
+                setup(title: "Code not right",
+                      text: "Copy it again in Nexora → More → Widget, then hold this widget → Edit Widget → paste.",
+                      detail: "")
             }
         }
         .containerBackground(for: .widget) {
@@ -72,14 +78,21 @@ struct NexoraWidgetView: View {
         .padding(.vertical, 13)
     }
 
-    private var setup: some View {
-        VStack(alignment: .leading, spacing: 6) {
+    private func setup(title: String, text: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
             Text("nexora.")
-                .font(.system(size: 16, weight: .heavy))
+                .font(.system(size: 15, weight: .heavy))
             Spacer(minLength: 0)
-            Text("Open Nexora once to set up this widget.")
-                .font(.system(size: 12, weight: .semibold))
+            Text(title)
+                .font(.system(size: 12, weight: .bold))
+            Text(text)
+                .font(.system(size: 9.5, weight: .semibold))
                 .fixedSize(horizontal: false, vertical: true)
+            if !detail.isEmpty {
+                Text(detail)
+                    .font(.system(size: 7.5, weight: .medium))
+                    .foregroundStyle(Color(hex: 0x2C4A60))
+            }
         }
         .foregroundStyle(ink)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

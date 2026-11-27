@@ -69,6 +69,11 @@ GitHub Actions on `macos-15`: XcodeGen makes the project from `project.yml`, the
 
 ## What's new
 
+### 1.4.1
+- Widget: reads the app's settings in more ways, so it works with more kinds of signing (the app saves the widget's copy in its own Keychain group and in a team-wide one; the widget looks in every group it may open).
+- Widget: if the signing still keeps it apart from the app, it asks for a setup code: Nexora → More → Widget → Copy setup code, then hold the widget → Edit Widget → paste. The code is copied only on this iPhone and clears from the clipboard after 2 minutes.
+- More → Widget shows what the last hand-over to the widget did.
+
 ### 1.4
 - Home screen widget (small): outdoor temperature and humidity with ↑/↓ and the change since the same time yesterday, eCO₂ and TVOC colored green / orange / red by air quality, on the sky with the sun by day or the moon in its real phase at night.
 - The widget's readings follow the app's order: the ESP32 itself (through EMQX), then Adafruit IO, then ThingSpeak. Yesterday's values come from ThingSpeak. Closing the app hands its own readings to the widget.

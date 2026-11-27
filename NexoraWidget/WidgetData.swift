@@ -8,28 +8,46 @@ struct WidgetData {
     var sky: SkyDay
 }
 
+enum LoadOutcome {
+    case ready(WidgetData)
+    /// The app's settings can't be read and there's no setup code; carries the Keychain status codes.
+    case needsCode(String)
+    /// The pasted setup code doesn't read.
+    case badCode
+}
+
 /// One widget refresh: readings in the app's order (the ESP32 itself through EMQX, then Adafruit IO,
 /// then ThingSpeak), the same time yesterday from ThingSpeak, and today's sun and moon.
 enum WidgetLoader {
     private static let lastReadingsKey = "lastReadings"
 
-    /// nil when the app hasn't handed over its settings yet.
-    static func load(now: Date) async -> WidgetData? {
-        guard let share = SharedKeychain.read() else { return nil }
-        let settings = share.settings
+    static func load(now: Date, code: String?) async -> LoadOutcome {
+        // The settings the app handed over (Keychain), else the pasted setup code.
+        let settings: ConnectionSettings
+        var fromApp: SharedReadings?
+        if let share = SharedKeychain.read() {
+            settings = share.settings
+            fromApp = share.readings
+        } else if let parsed = SetupCode.parse(code) {
+            settings = parsed
+        } else if let code, !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return .badCode
+        } else {
+            return .needsCode(SharedKeychain.lastReadStatus)
+        }
 
         async let skyDay = SkyService.day(for: now, at: SkySpot(settings: settings))
         async let past = Timeout.run(10) { await ThingSpeakNow.yesterday(settings, now: now) }
 
         var readings: SharedReadings?
-        if let fromApp = share.readings, now.timeIntervalSince(fromApp.at) < 180 {
+        if let fromApp, now.timeIntervalSince(fromApp.at) < 180 {
             // The app was just open: show exactly what it showed.
             readings = fromApp
         } else {
             readings = await ReadingsNow.fetch(settings)
         }
         if readings == nil {
-            readings = newest(share.readings, lastReadings())
+            readings = newest(fromApp, lastReadings())
         }
         if let readings {
             saveLastReadings(readings)
@@ -44,7 +62,7 @@ enum WidgetLoader {
         if let current = readings?.humidity, let then = yesterday?.humidity {
             data.humidityChange = current - then
         }
-        return data
+        return .ready(data)
     }
 
     private static func newest(_ a: SharedReadings?, _ b: SharedReadings?) -> SharedReadings? {

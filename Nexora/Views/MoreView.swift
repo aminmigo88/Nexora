@@ -1,4 +1,6 @@
 import SwiftUI
+import UIKit
+import UniformTypeIdentifiers
 
 enum SettingsSheet: String, Identifiable {
     case controller, relay, adafruit, thingSpeak, widget
@@ -225,6 +227,7 @@ struct SettingsEditor: View {
     @State var locator = LocationFetcher()
     @State var locating = false
     @State var locationError: String?
+    @State var codeCopied = false
 
     var body: some View {
         NavigationStack {
@@ -371,7 +374,32 @@ struct SettingsEditor: View {
                     Text("Tap this once at home, then Save. The widget gets each day's sunrise, sunset and moon phase for this spot from MET Norway. Only a rounded spot (about 1 km) is saved.")
                 }
             }
+            Section {
+                Button {
+                    copySetupCode()
+                } label: {
+                    HStack {
+                        Text(codeCopied ? "Copied — now paste it in the widget" : "Copy setup code")
+                        Spacer()
+                        if codeCopied {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                LabeledContent("Handed to the widget", value: WidgetBridge.lastStatus.isEmpty ? "—" : WidgetBridge.lastStatus)
+            } header: {
+                Text("If the widget asks for a setup code")
+            } footer: {
+                Text("Then hold the widget → Edit Widget → paste it into Setup code. The code holds your keys: it's copied only on this iPhone and clears from the clipboard after 2 minutes.")
+            }
         }
+    }
+
+    func copySetupCode() {
+        guard let code = SetupCode.make(from: draft) else { return }
+        UIPasteboard.general.setItems([[UTType.utf8PlainText.identifier: code]],
+                                      options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(120)])
+        codeCopied = true
     }
 
     func useCurrentLocation() async {
